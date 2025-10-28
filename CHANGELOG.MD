@@ -1,6 +1,15 @@
 # Changelog
 
-## 4.0.0
+## 4.0.1 /2025-1028
+
+## What's Changed
+* Support Python 3.14 by @thewhaleking in https://github.com/opentensor/btwallet/pull/166
+
+**Full Changelog**: https://github.com/opentensor/btwallet/compare/v4.0.0...v4.0.1
+
+## 4.0.0 /2025-08-06
+
+## What's Changed
 * make when_created field optional for json file import by @camfairchild in https://github.com/opentensor/btwallet/pull/160
 * Fix hotkeypub by @thewhaleking in https://github.com/opentensor/btwallet/pull/161
 
