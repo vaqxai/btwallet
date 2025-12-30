@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+// No extra imports needed for Windows
 use std::path::PathBuf;
 use std::str::from_utf8;
 
@@ -549,16 +551,23 @@ impl Keyfile {
             return Ok(false);
         }
 
-        // get file metadata
-        let metadata = fs::metadata(&self._path).map_err(|e| {
-            KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
-        })?;
-
-        // check permissions
-        let permissions = metadata.permissions();
-        let readable = permissions.mode() & 0o444 != 0; // check readability
-
-        Ok(readable)
+        #[cfg(unix)]
+        {
+            let metadata = fs::metadata(&self._path).map_err(|e| {
+                KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
+            })?;
+            let permissions = metadata.permissions();
+            let readable = permissions.mode() & 0o444 != 0; // check readability
+            Ok(readable)
+        }
+        #[cfg(windows)]
+        {
+            // On Windows, check if the file is readable by trying to open it for reading
+            match fs::File::open(&self._path) {
+                Ok(_) => Ok(true),
+                Err(_) => Ok(false),
+            }
+        }
     }
 
     /// Returns ``True`` if the file under path is writable.
@@ -568,16 +577,23 @@ impl Keyfile {
             return Ok(false);
         }
 
-        // get file metadata
-        let metadata = fs::metadata(&self._path).map_err(|e| {
-            KeyFileError::MetadataError(format!("Failed to get metadata for file: {}", e))
-        })?;
-
-        // check the permissions
-        let permissions = metadata.permissions();
-        let writable = permissions.mode() & 0o222 != 0; // check if file is writable
-
-        Ok(writable)
+        #[cfg(unix)]
+        {
+            let metadata = fs::metadata(&self._path).map_err(|e| {
+                KeyFileError::MetadataError(format!("Failed to get metadata for file: {}", e))
+            })?;
+            let permissions = metadata.permissions();
+            let writable = permissions.mode() & 0o222 != 0; // check if file is writable
+            Ok(writable)
+        }
+        #[cfg(windows)]
+        {
+            // On Windows, check if the file is writable by trying to open it for writing
+            match fs::OpenOptions::new().write(true).open(&self._path) {
+                Ok(_) => Ok(true),
+                Err(_) => Ok(false),
+            }
+        }
     }
 
     /// Returns ``True`` if the file under path is encrypted.
@@ -881,15 +897,22 @@ impl Keyfile {
             .map_err(|e| KeyFileError::FileWrite(format!("Failed to write to file: {}.", e)))?;
 
         // set permissions
-        let mut permissions = fs::metadata(&self._path)
-            .map_err(|e| {
-                KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
-            })?
-            .permissions();
-        permissions.set_mode(0o600); // just for owner
-        fs::set_permissions(&self._path, permissions).map_err(|e| {
-            KeyFileError::PermissionError(format!("Failed to set permissions: {}.", e))
-        })?;
+        #[cfg(unix)]
+        {
+            let mut permissions = fs::metadata(&self._path)
+                .map_err(|e| {
+                    KeyFileError::MetadataError(format!("Failed to get metadata for file: {}.", e))
+                })?
+                .permissions();
+            permissions.set_mode(0o600); // just for owner
+            fs::set_permissions(&self._path, permissions).map_err(|e| {
+                KeyFileError::PermissionError(format!("Failed to set permissions: {}.", e))
+            })?;
+        }
+        #[cfg(windows)]
+        {
+            // On Windows, do nothing for now (permissions are handled differently)
+        }
         Ok(())
     }
 
